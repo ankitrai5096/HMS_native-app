@@ -56,7 +56,8 @@ const [userDetails, setUserDetails] = useState(null);
   // Google Sign-In configuration
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: "621706144606-nj62i2pgcvpu27nji0bds4js7or4352r.apps.googleusercontent.com",
+      webClientId: "318451475423-oobp7eogkr3p2sob2vl7iqj6f4u95qc7.apps.googleusercontent.com",
+      offlineAccess: true,
       // 318451475423-oobp7eogkr3p2sob2vl7iqj6f4u95qc7.apps.googleusercontent.com
       // 621706144606-nj62i2pgcvpu27nji0bds4js7or4352r.apps.googleusercontent.com
     });

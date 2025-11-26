@@ -1,11 +1,12 @@
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import React, { useRef } from 'react'; 
+import React, { useRef } from 'react';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 import { Video } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
-import { useIsFocused } from '@react-navigation/native'; 
+import { useIsFocused } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 
 const Login = () => {
     const currentUser = useSelector((state) => state.auth.user);
@@ -26,35 +27,35 @@ const Login = () => {
                 if (isFocused) {
                     await videoRef.current.playAsync();
                 } else {
-                    await videoRef.current.pauseAsync(); 
+                    await videoRef.current.pauseAsync();
                 }
             }
         };
         manageVideoPlayback();
-    
+
 
         return () => {
             if (videoRef.current) {
-                videoRef.current.stopAsync(); 
+                videoRef.current.stopAsync();
             }
         };
     }, [isFocused]);
 
 
-  
+
 
     return (
         <View style={{ backgroundColor: Colors.white }}>
 
-<StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+            <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
 
             <Video
-                ref={videoRef} 
+                ref={videoRef}
                 source={require('./../assets/images/mahadev-intro.mp4')}
                 resizeMode="cover"
                 isLooping
-                shouldPlay={isFocused} 
+                shouldPlay={isFocused}
                 style={{
                     width: '100%',
                     height: 550,
@@ -73,7 +74,7 @@ const Login = () => {
                 </View>
 
                 <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
-                    <Text style={{ color: Colors.white, fontFamily: 'outfit-regular', fontSize: 15, textAlign: 'center' }}>Get Started</Text>
+                    <Text style={styles.buttonText}>Get Started</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -93,10 +94,18 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 20,
     },
     button: {
-        width: '60%',
-        marginTop: 20,
-        padding: 15,
+        width: wp('60%'),       // responsive width
+        marginTop: hp('2%'),    // responsive margin
+        paddingVertical: hp('1.8%'),  // responsive padding
         backgroundColor: '#FF671F',
         borderRadius: 99,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    buttonText: {
+        color: Colors.white,
+        fontFamily: 'outfit-regular',
+        fontSize: hp('2%'),     // responsive font size
+        textAlign: 'center',
     },
 });

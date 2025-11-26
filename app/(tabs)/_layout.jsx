@@ -23,10 +23,6 @@ const tabLayout = () => {
           tabBarIcon: ({ color }) => <Ionicons name="people" size={24} color={color} />
         }} />
 
-      <Tabs.Screen name="Post" 
-        options={{
-          tabBarIcon: ({ color }) => <Ionicons name="add" size={30} color={color} />
-        }} />
 
       <Tabs.Screen name="Veeds"  
         options={{

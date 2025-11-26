@@ -20,7 +20,7 @@ export default function RecommnededBooks({categoriesData, books}) {
                 ) : (
                     <MasonryList
                         data={books}
-                        keyExtractor={(item) => item}
+                        keyExtractor={(item) => item.id.toString()}
                         numColumns={2}
                         showsVerticalScrollIndicator={false}
                         renderItem={({ item, i }) => <RecipeCard item={item} index={i} navigation={navigation} />}

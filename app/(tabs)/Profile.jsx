@@ -1,58 +1,38 @@
-import { Button, StyleSheet, Text, View, Image } from 'react-native';
+import { StyleSheet, Text, View, Image } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db, fireDB } from '../../Configs/FirebaseConfig';
-import UserAvatar from 'react-native-user-avatar';
-import { Colors } from '../../constants/Colors';
-import Animated, { FadeInDown, FadeOut, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { auth, fireDB } from '../../Configs/FirebaseConfig';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { useFocusEffect } from '@react-navigation/native';
 import Loading from '../../components/Loading';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { TouchableOpacity } from 'react-native-gesture-handler';
+import { Colors } from '../../constants/Colors';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 
 const Profile = () => {
   const currentUser = useSelector((state) => state.auth.user);
   const [user, setUser] = useState(null);
-  const [isAnimationTriggered, setIsAnimationTriggered] = useState(false);
-  console.log("current user in profile", currentUser)
 
   const router = useRouter();
 
   const translateY = useSharedValue(50); 
   const opacity = useSharedValue(0.5); 
-  const navigation = useNavigation();
 
   useEffect(() => {
     triggerAnimation(); 
-    fetchUser()
+    fetchUser();
   }, []);
 
-  const handleGetStarted = async () => {
-    router.push('verify/GetVerify');
-};
-
-const adminSection = async () => {
-  router.push('verify/AdminPanel');
-};
-
-
   const fetchUser = async () => {
-
     try {
       if (currentUser) {
         const userDocRef = fireDB.collection('users').doc(currentUser.uid);
         const documentSnapshot = await userDocRef.get();
 
         if (documentSnapshot.exists) {
-          const userData = documentSnapshot.data();
-          setUser(userData);
-          console.log('User data from Firestore at profle page:', userData);
-        } else {
-          console.log('No such document!');
+          setUser(documentSnapshot.data());
         }
-      } else {
-        console.log('No user is logged in.');
       }
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -60,14 +40,11 @@ const adminSection = async () => {
   };
 
   const triggerAnimation = () => {
-    setIsAnimationTriggered(true); 
     translateY.value = 50; 
     opacity.value = 0.5;
     translateY.value = withSpring(0, { damping: 12, stiffness: 100 }); 
     opacity.value = withTiming(1, { duration: 500 });
   };
-
-
 
   const logout = async () => {
     try {
@@ -77,12 +54,10 @@ const adminSection = async () => {
       console.error('Error during logout:', error);
     }
   };
+
   useFocusEffect(
     React.useCallback(() => {
-      translateY.value = 50; 
-      opacity.value = 0.5;
-      translateY.value = withSpring(0, { damping: 12, stiffness: 100 }); 
-      opacity.value = withTiming(1, { duration: 500 });
+      triggerAnimation();
     }, [])
   );
 
@@ -92,93 +67,111 @@ const adminSection = async () => {
   }));
 
   if (!currentUser) {
-    return <Loading size='large'/>;
+    return <Loading size="large" />;
   }
 
   return (
-    <Animated.View style={styles.container}>
-      {currentUser && (
-        <>
-          {/* Profile Header Animation */}
-          <Animated.View style={[styles.profileHeader, animatedStyle]}>
-            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>          
-              <Image style={{ width: 50, height: 50, marginLeft: 5 }} source={require('../../assets/images/profile-pic.png')} />
+    <View style={styles.container}>
+      {/* Top Section */}
+      <View style={styles.topSection}>
+        <Image
+          style={styles.avatar}
+          source={require('../../assets/images/profile-picture-4.png')}
+        />
+        <Text style={styles.fullName}>{currentUser.displayName}</Text>
+        <Text style={styles.email}>{currentUser.email}</Text>
+      </View>
+
+      {/* Bottom Section */}
+      <Animated.View style={[styles.bottomSection, animatedStyle]}>
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity style={styles.primaryButton} onPress={logout}>
+            <Text style={styles.buttonText}>Logout</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('verify/GetVerify')}
+          >
+            <Text style={styles.buttonText}>Get Verified</Text>
+          </TouchableOpacity>
+
+          {user && user.isAdmin && (
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => router.push('verify/AdminPanel')}
+            >
+              <Text style={styles.buttonText}>Admin Panel</Text>
             </TouchableOpacity>
-            <Text style={styles.fullName}>{currentUser.displayName}</Text>
-            <Text style={styles.email}>{currentUser.email}</Text>
-
-
-  <Button title="Logout" onPress={logout} />
-  <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
-                    <Text style={{ color: Colors.white, fontFamily: 'outfit-regular', fontSize: 15, textAlign: 'center' }}>Get Verified</Text>
-                </TouchableOpacity>
-{user && user.isAdmin && <TouchableOpacity style={styles.button} onPress={adminSection}>
-                    <Text style={{ color: Colors.white, fontFamily: 'outfit-regular', fontSize: 15, textAlign: 'center' }}>Admin Panel</Text>
-                </TouchableOpacity> }
-                
-          </Animated.View>
-        </>
-      )}
-    </Animated.View>
+          )}
+        </View>
+      </Animated.View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.Primary,
+  },
+  topSection: {
+    height: hp('45%'),
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
-  profileHeader: {
-    alignItems: 'center',
-    marginBottom: 30,
-    backgroundColor:Colors.Primary,
-    paddingVertical: 40,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    width: '100%',
-    maxWidth: 350,
-    textAlign: 'center',
+    paddingTop: hp('5%'),
   },
   avatar: {
-    marginBottom: 15,
+    width: wp('28%'),
+    height: wp('28%'),
+    borderRadius: wp('14%'),
+    marginBottom: hp('2%'),
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   fullName: {
-    fontSize: 26,
-    fontWeight: 'bold',
+    fontSize: wp('6%'),
+    fontWeight: '600',
     color: '#fff',
-    marginBottom: 5,
+    marginBottom: hp('0.5%'),
   },
   email: {
-    fontSize: 18,
+    fontSize: wp('4%'),
     color: '#f1f1f1',
-    marginBottom: 10,
   },
-  infoContainer: {
-    marginVertical: 20,
-    backgroundColor: Colors.Primary,
-    padding: 20,
-    borderRadius: 8,
+  bottomSection: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: wp('8%'),
+    borderTopRightRadius: wp('8%'),
+    paddingHorizontal: wp('6%'),
+    paddingVertical: hp('3%'),
     shadowColor: '#000',
     shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonGroup: {
     width: '100%',
-    maxWidth: 350,
+    marginTop: hp('2%'),
+    gap: hp('2%'),
   },
-  infoText: {
-    fontSize: 16,
-    color: '#fff',
-    marginBottom: 10,
-  },
-  button: {
-    width: '60%',
-    marginTop: 20,
-    padding: 15,
+  primaryButton: {
     backgroundColor: '#FF671F',
-    borderRadius: 99,
-},
+    paddingVertical: hp('2%'),
+    borderRadius: wp('4%'),
+  },
+  secondaryButton: {
+    backgroundColor: Colors.Primary,
+    paddingVertical: hp('2%'),
+    borderRadius: wp('4%'),
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: wp('4.5%'),
+    fontWeight: '500',
+    textAlign: 'center',
+  },
 });
-
 
 export default Profile;

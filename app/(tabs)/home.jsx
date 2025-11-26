@@ -1,76 +1,43 @@
-import { View, Text, ScrollView, Image, StyleSheet, TextInput, Modal, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, ScrollView, Image, StyleSheet, Modal, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import { BellIcon, MagnifyingGlassIcon } from 'react-native-heroicons/outline';
-import Categories from '../../components/Categories';
-import axios from 'axios';
-import RecommnededBooks from '../../components/RecommnededBooks';
-import { collection, getDoc, doc, getDocs, query, where } from 'firebase/firestore';
-import { auth, db, fireDB } from '../../Configs/FirebaseConfig';
-import { Video } from 'expo-av';
-import { TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { NameInitialsAvatar } from 'react-name-initials-avatar';
-import { Colors } from '../../constants/Colors';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
-import Homefeed from '../Veeds/homeFeed';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import YoutubeIframe from 'react-native-youtube-iframe';
+import Categories from '../../components/Categories';
 import Arti from '../Veeds/Arti';
+import Quotes from '../../Configs/quotes.json';
+import { Colors } from '../../constants/Colors';
+import { auth, fireDB } from '../../Configs/FirebaseConfig';
+
 export default function HomeScreen() {
   const currentUser = useSelector((state) => state.auth.user);
   const user = auth().currentUser;
-
-
-
-
-  const [categories, setCategories] = useState([]);
-  const [meals, setMeals] = useState([]);
-  // const [user, setUser] = useState({});
-  const [categoriesData, setCategoriesData] = useState([]);
-  const [books, setBooks] = useState([]);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const playerRef = useRef(null);
-
   const navigation = useNavigation();
 
-
-  const toggleModal = () => {
-    setIsModalVisible(!isModalVisible);
-    setIsPlaying(false);
-  };
-
+  const [categoriesData, setCategoriesData] = useState([]);
+  const [books, setBooks] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('Mahadev');
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const [videoUrl, setVideoUrl] = useState("bAUMuuRH99o");
-  console.log("Video url", videoUrl)
 
+  const toggleModal = () => setIsModalVisible(!isModalVisible);
 
-  useEffect(() => {
-        fetchUser();
-        fetchCategories();
-        fetchBooksByCategory();
-  }, [currentUser]);
-
-  handleChangeCategory = category => {
+  const handleChangeCategory = (category) => {
     fetchBooksByCategory(category);
     setActiveCategory(category);
     setBooks([]);
-
   }
 
   const handlePlayIconPress = async (category) => {
     try {
-      // Fetch the video URL for the selected category
       const categoryRef = fireDB
         .collection('categories')
         .doc('MNfBRAvIBxnjZLxklVuQ')
         .collection('storiesCategory')
         .where('strCategory', '==', category);
-  
+
       const querySnapshot = await categoryRef.get();
       if (!querySnapshot.empty) {
         const categoryDoc = querySnapshot.docs[0];
@@ -81,25 +48,29 @@ export default function HomeScreen() {
       console.error('Error fetching video:', error);
     }
   };
+
+  useEffect(() => {
+    fetchUser();
+    fetchCategories();
+    fetchBooksByCategory();
+  }, [currentUser]);
+
   const fetchUser = async () => {
     try {
       if (user) {
         const userDocRef = fireDB.collection('users').doc(currentUser.uid);
         const documentSnapshot = await userDocRef.get();
         if (documentSnapshot.exists) {
-          const userData = documentSnapshot.data();
-
-          console.log('User data from Firestore at home page:', userData);
+          console.log('User data:', documentSnapshot.data());
         } else {
           console.log('No such document!');
         }
-      } else {
-        console.log('No user is logged in.');
       }
     } catch (error) {
       console.error('Error fetching user:', error);
     }
   };
+
   const fetchCategories = async () => {
     try {
       if (user) {
@@ -108,295 +79,145 @@ export default function HomeScreen() {
           .doc('MNfBRAvIBxnjZLxklVuQ')
           .collection('storiesCategory');
 
-
         const querySnapshot = await storiesCategoryRef.get();
-
-
-        if (querySnapshot.empty) {
-          console.log('No documents found in the storiesCategory collection!');
-          return;
+        if (!querySnapshot.empty) {
+          const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setCategoriesData(data);
         }
-
-
-        const categoriesData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-
-        setCategoriesData(categoriesData);
-      } else {
-        console.log('No user is logged in.');
       }
     } catch (error) {
       console.error('Error fetching categories: ', error);
     }
   };
 
-
-
-
   const fetchBooksByCategory = async (category) => {
     try {
+      if (!user) return;
 
-      if (user) {
+      const storiesCategoryRef = fireDB
+        .collection('categories')
+        .doc('MNfBRAvIBxnjZLxklVuQ')
+        .collection('storiesCategory');
 
+      const categoryQuerySnapshot = await storiesCategoryRef
+        .where('strCategory', '==', category || activeCategory)
+        .get();
 
-        // Reference to the storiesCategory collection
-        const storiesCategoryRef = fireDB
-          .collection('categories')
-          .doc('MNfBRAvIBxnjZLxklVuQ')
-          .collection('storiesCategory');
+      if (categoryQuerySnapshot.empty) return;
 
-        // Query to find the category
-        const categoryQuerySnapshot = await storiesCategoryRef
-          .where('strCategory', '==', category || activeCategory)
-          .get();
-
-        if (categoryQuerySnapshot.empty) {
-          console.log(`No category found for '${category}'`);
-          return;
-        }
-
-        // Iterate over the matching categories
-        const allBooks = [];
-        for (const categoryDoc of categoryQuerySnapshot.docs) {
-          console.log('Category Found:', categoryDoc.id, categoryDoc.data());
-
-          // Reference to the Books sub-collection
-          const booksRef = storiesCategoryRef
-            .doc(categoryDoc.id)
-            .collection('Books');
-
-          const booksSnapshot = await booksRef.get();
-
-          if (booksSnapshot.empty) {
-            console.log('No books found in the Books subcollection!');
-            continue;
-          }
-
-          const booksData = booksSnapshot.docs.map((bookDoc) => ({
-            id: bookDoc.id,
-            ...bookDoc.data(),
-          }));
-
+      const allBooks = [];
+      for (const categoryDoc of categoryQuerySnapshot.docs) {
+        const booksRef = storiesCategoryRef.doc(categoryDoc.id).collection('Books');
+        const booksSnapshot = await booksRef.get();
+        if (!booksSnapshot.empty) {
+          const booksData = booksSnapshot.docs.map(bookDoc => ({ id: bookDoc.id, ...bookDoc.data() }));
           allBooks.push(...booksData);
         }
+      }
 
-        console.log('Books:', allBooks);
-        setBooks(allBooks); // Ensure `setBooks` is properly defined in your component
-      } else {
-        console.log("user not authenticated")
-      };
+      setBooks(allBooks);
     } catch (error) {
       console.error('Error fetching books:', error);
     }
   };
 
+  return (
+    <View style={styles.container}>
+      <StatusBar style="dark" />
 
-
-
-
-  const [activeCategory, setActiveCategory] = useState('Mahadev');
-
-    return (
-      <View style={styles.container}>
-        <StatusBar style="dark" />
-        
-        {/* Header Section */}
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatarusername}>
-            <Text style={styles.avatarText}>Vedas</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <MaterialIcons name="notifications-none" size={32} color="black" />
-              <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-                <Image 
-                  style={{ width: 30, height: 30, marginLeft: 5 }} 
-                  source={require('../../assets/images/profile-pic.png')} 
-                />
-              </TouchableOpacity>
-            </View>
+      {/* Header */}
+      <View style={styles.avatarContainer}>
+        <View style={styles.avatarusername}>
+          <Text style={styles.avatarText}>Vedas</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: wp(2) }}>
+            <MaterialIcons name="notifications-none" size={wp(8)} color="white" />
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+              <Image 
+                style={{ width: wp(8), height: wp(8), marginLeft: wp(2) }} 
+                source={require('../../assets/images/profile-pic-3.png')} 
+              />
+            </TouchableOpacity>
           </View>
         </View>
-  
-        {/* Video Modals */}
-  
-        <Modal
-          transparent
-          visible={isModalVisible}
-          animationType="slide"
-          onRequestClose={toggleModal}
-        >
-          <TouchableWithoutFeedback onPress={toggleModal}>
-            <View style={styles.modalOverlay}>
-              {videoUrl &&  <Arti toggleModal={toggleModal} videoId={videoUrl} />}
-            </View>
-          </TouchableWithoutFeedback>
-        </Modal>
-  
-        {/* Main Content */}
-          <View style={styles.line} />
-          
-          {/* Categories Section */}
-          <View>
-            {categoriesData && (
-              <Categories 
-                categoriesData={categoriesData} 
-                handlePlayIconPress={handlePlayIconPress} 
-                activeCategory={activeCategory} 
-                handleChangeCategory={handleChangeCategory} 
-              />
-            )}
-          </View>
-  
-          {/* Greetings Section */}
-          <View style={styles.greetingsContainer}>
-            <Text style={styles.greetingTextMain}>
-              Good<Text style={{ color: '#f59e0b' }}> Reads</Text>
-            </Text>
-            <Text style={styles.greetingText}>
-              “अग्निदेव से कहा कि माघ महीने में जो भी स्त्री सबसे पहले प्रयाग में स्नान करे उसके शरीर में आप इस शक्ति को स्थित कर देना। माघ का महीना आने पर सुबह ब्रह्म मुहूर्त में सर्वप्रथम सप्तऋषियों की पत्नियां प्रयाग में स्नान करने पहुंचीं। स्नान करने के उपरांत जब उन्होंने अत्यधिक ठंड का अनुभव किया तो उनमें से छः स्त्रियां अग्नि के पास जाकर।”
-            </Text>
-          </View>
-  
-          {/* Home Feed */}
-          <Homefeed />
       </View>
-    );
-  }
 
+      {/* Video Modal */}
+      <Modal
+        transparent
+        visible={isModalVisible}
+        animationType="slide"
+        onRequestClose={toggleModal}
+      >
+        <TouchableWithoutFeedback onPress={toggleModal}>
+          <View style={styles.modalOverlay}>
+            {videoUrl && <Arti toggleModal={toggleModal} videoId={videoUrl} />}
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Scrollable Content */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: hp(5) }}>
+        
+        {/* Categories */}
+        {categoriesData && (
+          <Categories 
+            categoriesData={categoriesData} 
+            handlePlayIconPress={handlePlayIconPress} 
+            activeCategory={activeCategory} 
+            handleChangeCategory={handleChangeCategory} 
+          />
+        )}
+
+        {/* Greetings / Quotes */}
+        <View style={styles.greetingsContainer}>
+          <Text style={styles.greetingTextMain}>
+            Good<Text style={{ color: '#f59e0b' }}> Reads</Text>
+          </Text>
+
+          {Quotes.slice(0, 10).map((q) => (
+            <Text key={q.id} style={styles.greetingText}>
+              {q.quote}
+            </Text>
+          ))}
+        </View>
+
+        {/* Home Feed */}
+        {/* <Homefeed /> */}
+
+      </ScrollView>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'white',
-    marginTop: -10,
-  },
-  scrollViewContent: {
-    paddingBottom: 50,
-    paddingTop: hp(14),
-  },
+  container: { flex: 1, backgroundColor: 'white' },
+
   avatarContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: Colors.Primary,
-    paddingHorizontal: 15,
-    paddingVertical: 20,
-    marginTop: 10,
-    gap: 20,
-    color: 'white',
-    borderBottomLeftRadius: 15,
-    borderBottomRightRadius: 15,
-    shadowColor: Colors.Primary,
-
-    shadowOpacity: 1,
-    shadowRadius: 10,
-
-
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(3.5),
+    borderBottomLeftRadius: wp(4),
+    borderBottomRightRadius: wp(4),
   },
-  // line: {
-  //   height: 6,
-  //   backgroundColor: '#FF671F',
-  //   width: '100%',
-  //   borderRadius: 10, 
-  // },
 
   avatarusername: {
-    marginTop: 30,
-    display: 'flex',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
+    paddingTop: hp(2.2)
   },
 
-  // avatar:{
-  //   height:hp(6),
-  //   width:hp(6),
-  // },
-  avatarText: {
-    color: Colors.white,
-    fontSize: 28,
-    fontFamily: 'outfit-bold',
-    fontWeight: 'bold',
-  },
-  avatarText2: {
-    marginTop: -4,
-    color: 'white',
-    fontSize: 16,
-    fontFamily: 'outfit-bold',
-    opacity: 0.7,
-  },
-  greetingsContainer: {
-    display: 'flex',
-    marginHorizontal: 16,
-    marginBottom: 15,
-    marginTop: 15,
-    gap: 10,
-  },
-  greetingText: {
-    fontSize: hp(2),
-    color: '#4B5563',
-    marginLeft: 5,
-    opacity: 0.65,
-    fontFamily: 'outfit-medium',
-    marginBottom: 5,
-  },
-  greetingTextMain: {
-    fontSize: hp(3),
-    color: '#4B5563',
-    fontWeight: 'bold',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    backgroundColor: 'black',
-    justifyContent: 'space-between',
-    padding: 10,
-    borderRadius: 20,
-    marginHorizontal: 20,
-    paddingHorizontal: 20,
-  },
-  openButton: {
-    padding: 10,
-    backgroundColor: '#007bff',
-    borderRadius: 5,
-  },
-  openButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 103, 31, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  avatarText: { color: Colors.white, fontSize: hp(3.5), fontWeight: 'bold' },
 
-  },
-  modalContent: {
-    width: '90%',
-    backgroundColor: '#ffff',
-    borderRadius: 15,
-    overflow: 'hidden',
-    alignItems: 'center',
-    borderColor: 'rgba(255, 255, 255, 1)',
-    borderWidth: 4,
-  },
-  video: {
-    width: '100%',
-    height: 450,
-  },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  greetingsContainer: { marginHorizontal: wp(4), marginTop: hp(3), marginBottom: hp(2), gap: hp(1.5) },
 
-  },
-  controlButton: {
-    position: 'absolute',
-    top: -440,
-    left: 120,
+  greetingTextMain: { fontSize: hp(3.5), color: '#4B5563', fontWeight: 'bold' },
 
-  },
+  greetingText: { fontSize: hp(2.2), color: '#4B5563', opacity: 0.7, marginBottom: hp(1), lineHeight: hp(3) },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(255, 103, 31, 0.7)', justifyContent: 'center', alignItems: 'center' },
 });

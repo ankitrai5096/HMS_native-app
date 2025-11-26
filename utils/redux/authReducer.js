@@ -4,24 +4,25 @@ const initialState = {
 
 const authReducer = (state = initialState, action) => {
   switch (action.type) {
-    case "SET_USER":
+    case "SET_USER": {
+      const userData = action.payload || {};
       return {
         ...state,
         user: {
-          displayName: action.payload.displayName,
-          email: action.payload.email,
-          emailVerified: action.payload.emailVerified,
-          phoneNumber: action.payload.phoneNumber,
-          photoURL: action.payload.photoURL,
-          providerId: action.payload.providerId,
-          uid: action.payload.uid,
-          // Convert metadata timestamps to numbers if needed
+          displayName: userData.displayName || "Unknown",
+          email: userData.email || "Unknown",
+          emailVerified: userData.emailVerified || "Unknown",
+          phoneNumber: userData.phoneNumber || "Unknown",
+          photoURL: userData.photoURL || "Unknown",
+          providerId: userData.providerId || "Unknown",
+          uid: userData.uid || "Unknown",
           metadata: {
-            creationTime: action.payload.metadata?.creationTime ?? null,
-            lastSignInTime: action.payload.metadata?.lastSignInTime ?? null,
+            creationTime: userData.metadata?.creationTime ?? null,
+            lastSignInTime: userData.metadata?.lastSignInTime ?? null,
           },
         },
       };
+    }
     case "CLEAR_USER":
       return {
         ...state,

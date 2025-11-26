@@ -1,84 +1,43 @@
-import { View, Text, ScrollView, Image, StyleSheet, TextInput, Modal, TouchableWithoutFeedback } from 'react-native';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  StyleSheet, 
+  TextInput 
+} from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import { BellIcon, MagnifyingGlassIcon } from 'react-native-heroicons/outline';
-import Categories from '../../components/Categories';
-import axios from 'axios';
+import { MagnifyingGlassIcon } from 'react-native-heroicons/outline';
 import RecommnededBooks from '../../components/RecommnededBooks';
-import { collection, getDoc, doc, getDocs, query, where } from 'firebase/firestore';
-import { auth, db, fireDB } from '../../Configs/FirebaseConfig';
-import { Video } from 'expo-av';
-import { TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { NameInitialsAvatar } from 'react-name-initials-avatar';
+import { auth, fireDB } from '../../Configs/FirebaseConfig';
 import { Colors } from '../../constants/Colors';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import CategoryTags from '../../components/CategoryTags';
 
-
 export default function HomeScreen() {
-
   const currentUser = useSelector((state) => state.auth.user);
   const user = auth().currentUser;
 
-
-
-
-  const [categories, setCategories] = useState([]);
-  const [meals, setMeals] = useState([]);
-  // const [user, setUser] = useState({});
   const [categoriesData, setCategoriesData] = useState([]);
   const [books, setBooks] = useState([]);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const playerRef = useRef(null);
+  const [activeCategory, setActiveCategory] = useState('Mahadev');
+  const [searchText, setSearchText] = useState("");
 
   const navigation = useNavigation();
-
-
+  const playerRef = useRef(null);
 
   useEffect(() => {
     fetchCategories();
     fetchBooksByCategory();
-    console.log("current user from redux", currentUser)
   }, [currentUser]);
 
-  handleChangeCategory = category => {
+  const handleChangeCategory = (category) => {
     fetchBooksByCategory(category);
     setActiveCategory(category);
     setBooks([]);
-
-  }
-
-
-  const fetchUser = async () => {
-
-    try {
-      if (user) {
-        const userDocRef = fireDB.collection('users').doc(currentUser.uid);
-        const documentSnapshot = await userDocRef.get();
-
-        if (documentSnapshot.exists) {
-          const userData = documentSnapshot.data();
-          // setUser(userData);
-          console.log('User data from Firestore at home page:', userData);
-        } else {
-          console.log('No such document!');
-        }
-      } else {
-        console.log('No user is logged in.');
-      }
-    } catch (error) {
-      console.error('Error fetching user:', error);
-    }
   };
-
-
-
 
   const fetchCategories = async () => {
     try {
@@ -109,21 +68,14 @@ export default function HomeScreen() {
     }
   };
 
-
-
   const fetchBooksByCategory = async (category) => {
     try {
-
       if (user) {
-
-
-        // Reference to the storiesCategory collection
         const storiesCategoryRef = fireDB
           .collection('categories')
           .doc('MNfBRAvIBxnjZLxklVuQ')
           .collection('storiesCategory');
 
-        // Query to find the category
         const categoryQuerySnapshot = await storiesCategoryRef
           .where('strCategory', '==', category || activeCategory)
           .get();
@@ -133,12 +85,8 @@ export default function HomeScreen() {
           return;
         }
 
-        // Iterate over the matching categories
         const allBooks = [];
         for (const categoryDoc of categoryQuerySnapshot.docs) {
-          console.log('Category Found:', categoryDoc.id, categoryDoc.data());
-
-          // Reference to the Books sub-collection
           const booksRef = storiesCategoryRef
             .doc(categoryDoc.id)
             .collection('Books');
@@ -158,57 +106,63 @@ export default function HomeScreen() {
           allBooks.push(...booksData);
         }
 
-        console.log('Books:', allBooks);
-        setBooks(allBooks); // Ensure `setBooks` is properly defined in your component
+        setBooks(allBooks);
       } else {
-        console.log("user not authenticated")
-      };
+        console.log("user not authenticated");
+      }
     } catch (error) {
       console.error('Error fetching books:', error);
     }
   };
 
+  // Filter books for search
+  const filteredBooks = books.filter((book) =>
+    book.bookName?.toLowerCase().includes(searchText.toLowerCase())
+  );
 
-
-
-  const [activeCategory, setActiveCategory] = useState('Mahadev');
   return (
-
-
-
     <View style={styles.container}>
       <StatusBar style="dark" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollViewContent}
       >
-
-
-
-
-
+        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <TextInput
             placeholder='Search a book here...'
-            placeholderTextColor={"#ffff"}
-            // placeholderFontWeight={'500'}
-            style={{ flex: 1, fontSize: hp(2),fontWeight:'bold' }}
+            placeholderTextColor={"#fff"}
+            value={searchText}
+            onChangeText={(text) => setSearchText(text)}
+            style={{ 
+              flex: 1, 
+              fontSize: hp(2), 
+              fontWeight: 'bold', 
+              color: "white" 
+            }}
           />
           <MagnifyingGlassIcon size={hp(2.3)} strokeWidth={3} color={'#fff'} />
         </View>
-
 
         {/* Categories */}
         <View style={styles.line} />
         <View>
           {categoriesData && (
-            <CategoryTags categoriesData={categoriesData}  activeCategory={activeCategory} handleChangeCategory={handleChangeCategory} />
+            <CategoryTags 
+              categoriesData={categoriesData}  
+              activeCategory={activeCategory} 
+              handleChangeCategory={handleChangeCategory} 
+            />
           )}
-
         </View>
 
+        {/* Books */}
         <View>
-          <RecommnededBooks books={books} categoriesData={categoriesData} />
+          {filteredBooks.length > 0 ? (
+            <RecommnededBooks books={filteredBooks} categoriesData={categoriesData} />
+          ) : (
+            <Text style={styles.noResults}>No books found</Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -219,61 +173,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
-
   },
-  scrollViewContent:{
-    marginTop: 40,
+  scrollViewContent: {
+    marginTop: hp(5),
+    paddingBottom: hp(5),
   },
-
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: hp(1),
     backgroundColor: Colors.Primary,
     justifyContent: 'space-between',
-    padding: 10,
-    borderRadius: 20,
-    marginHorizontal: 10,
-    paddingHorizontal: 20,
+    padding: hp(1.5),
+    borderRadius: wp(5),
+    marginHorizontal: wp(3),
+    paddingHorizontal: wp(4),
   },
-  openButton: {
-    padding: 10,
-    backgroundColor: '#007bff',
-    borderRadius: 5,
+  line: {
+    marginVertical: hp(1),
+    borderBottomColor: '#E5E7EB',
+    borderBottomWidth: 1,
+    opacity: 0.5,
   },
-  openButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 103, 31, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-
-  },
-  modalContent: {
-    width: '90%',
-    backgroundColor: '#ffff',
-    borderRadius: 15,
-    overflow: 'hidden',
-    alignItems: 'center',
-    borderColor: 'rgba(255, 255, 255, 1)',
-    borderWidth: 4,
-  },
-  video: {
-    width: '100%',
-    height: 450,
-  },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-
-  },
-  controlButton: {
-    position: 'absolute',
-    top: -440,
-    left: 120,
-
+  noResults: {
+    textAlign: 'center',
+    fontSize: hp(2),
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginTop: hp(5),
   },
 });
